@@ -6,6 +6,16 @@ TryOver3 = Module.new
 # - `test_` メソッドがこのクラスに実装されていなくても `test_` から始まるメッセージに応答することができる
 # - TryOver3::A1 には `test_` から始まるインスタンスメソッドが定義されていない
 
+class TryOver3::A1
+  def run_test
+    nil
+  end
+
+  def method_missing(method_name)
+    return run_test if method_name.match(/^test_/)
+    super
+  end
+end
 
 # Q2
 # 以下要件を満たす TryOver3::A2Proxy クラスを作成してください。
@@ -18,6 +28,20 @@ class TryOver3::A2
   end
 end
 
+class TryOver3::A2Proxy
+  def initialize(source)
+    @source = source
+  end
+
+  def method_missing(method_name, *args)
+    return @source.send(method_name, *args) if @source.respond_to?(method_name)
+    super
+  end
+
+  def respond_to_missing?(method_name, include_private)
+    @source.respond_to?(method_name) || super
+  end
+end
 
 # Q3
 # 前回 OriginalAccessor の my_attr_accessor で定義した getter/setter に boolean の値が入っている場合には #{name}? が定義されるようなモジュールを実装しました。
@@ -35,6 +59,8 @@ module TryOver3::OriginalAccessor2
           self.class.define_method "#{attr_sym}?" do
             @attr == true
           end
+        elsif respond_to?("#{attr_sym}?")
+          self.class.undef_method "#{attr_sym}?"
         end
         @attr = value
       end
@@ -49,6 +75,27 @@ end
 # TryOver3::A4::Hoge.run
 # # => "run Hoge"
 
+class TryOver3::A4
+  def self.runners=(const_names)
+    @runners = const_names
+  end
+
+  def self.runners
+    @runners
+  end
+
+  def self.const_missing(const_name)
+    return super unless self.runners.include?(const_name)
+
+    klass = Class.new do |c|
+      c.define_singleton_method 'run' do
+        "run #{const_name}"
+      end
+    end
+
+    const_set(const_name, klass)
+  end
+end
 
 # Q5. チャレンジ問題！ 挑戦する方はテストの skip を外して挑戦してみてください。
 #
